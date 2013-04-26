@@ -1,0 +1,38 @@
+# AARSETH_TRIPLE = $(MARTEN_HOME)/packages/triple
+# AARSETH_SOURCES = binary.f block.f derqp.f difsy1.f impact.f peri.f transf.f
+# AARSETH_AWKSCRIPT='{print} \
+#        /SUBROUTINE DIFSY1/ {print "cf2py intent(hide) n"; \
+#                             print "cf2py intent(in) eps"; \
+#                             print "cf2py intent(in, out) h, x, y"} \
+#        /SUBROUTINE BINARY/ {print "cf2py intent(in, out) iesc"}'
+AARSETH_MODULES=only: difsy1 transf binary :
+AARSETH_TRIPLE = $(MARTEN_HOME)/packages/Triple
+# definitely put difsy1.f before derqp, otherwise names of azreg are wrong
+AARSETH_SOURCES = difsy1.f transf.f derqp.f peri.f 
+AARSETH_AWKSCRIPT='{print} \
+      /SUBROUTINE DIFSY1/ {print "cf2py intent(hide) n"; \
+                           print "cf2py intent(in) eps"; \
+                           print "cf2py intent(in, out) h, x, y"}'
+AARSETH_MODULES=
+
+all: extrpsf.so triple_aarseth.so find2vel.so
+
+extract_psf.f95: $(MARTEN_GENERAL)/reduce/extract_psf_new.f95
+	cp $< $@
+	echo "subroutine writeout(out)\n  character :: out*(*)\n  print*,out\nend" >>$@
+
+extrpsf.so: extract_psf.f95
+	f2py -m $(subst .so,,$@) only: extract_psf psfmany : -c $<
+
+find2vel.f95: $(MARTEN_GENERAL)/corr/find2vel.f95
+	cp $< $@
+	echo "subroutine writeout(out)\n  character :: out*(*)\n  print*,out\nend" >>$@
+
+findvel.so: find2vel.f95
+	f2py -m $(subst .so,,$@) only: shiftreference fitmodel : -c $<
+
+triple_aarseth.f: $(addprefix $(AARSETH_TRIPLE)/, $(AARSETH_SOURCES))
+	awk $(AARSETH_AWKSCRIPT) $^ > $@
+
+triple_aarseth.so: triple_aarseth.f
+	f2py -m $(subst .so,,$@) $(AARSETH_MODULES) -c $< 
