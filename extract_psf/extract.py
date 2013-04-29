@@ -189,6 +189,6 @@ def extract(d, tracepos, psf,
 
         return (back, chi2, test, ntbadl, ntbadh)
 
-def fitsky(d, skypol=2, clip=5., itesttype=101):
+def fitsky(d, skypol=2, clip=5., itesttype=101, **kwargs):
     return extract(d, skypol=skypol, clip=clip, itesttype=itesttype,
-                   tracepos=None, psf=None, fitrange=None)
+                   tracepos=None, psf=None, fitrange=None, **kwargs)
