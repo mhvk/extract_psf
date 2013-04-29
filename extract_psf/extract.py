@@ -167,7 +167,7 @@ def extract(d, tracepos, psf,
                 ntdiscard, ntbadl, ntbadh, nproblems)
 
     else:
-        _,_,_,_,_,_, chi2, test, _, ntbadl, ntbadh, _ = extrpsf.extract_psf(
+        _,_,_,_,_, back, chi2, test, _, ntbadl, ntbadh, _ = extrpsf.extract_psf(
             d, istep_in=istep_d, ein=e, istart_ein=0, istep_ein=istep_d,
             ipbeg=ipbeg, ipend=ipend,
             kbeg=kbeg, kend=kend, lbeg=lbeg, lend=lend,
@@ -178,15 +178,16 @@ def extract(d, tracepos, psf,
             nstar=0, npolsky=skypol,
             nout=1, nback=1, nchi2=nout, istep_out=istep_out,
             ntest=d.size, istart_test=0, istep_test=istep_d,
-            o_flag=False, e_flag=False, b_flag=False, c_flag=True,
+            o_flag=False, e_flag=False, b_flag=True, c_flag=True,
             p_flag=False, s_flag=False,
             itesttype=itesttype, rnull=0., ibadlimit=2)
         # Restore proper shapes of input arrays
         d.shape = e.shape = test.shape = d_orig_shape
         # Set output array shape, removing unnecessary dimensions
-        chi2.shape = [n for n in (norder, ndisp) if n>1 or not squeeze_dims]
+        back.shape = chi2.shape = [n for n in (norder, ndisp) 
+                                   if n>1 or not squeeze_dims]
 
-        return (chi2, test, ntbadl, ntbadh)
+        return (back, chi2, test, ntbadl, ntbadh)
 
 def fitsky(d, skypol=2, clip=5., itesttype=101):
     return extract(d, skypol=skypol, clip=clip, itesttype=itesttype,
