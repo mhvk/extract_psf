@@ -492,7 +492,7 @@ subroutine Extract_Order(in,nin,ein,nein,xord, &
         enddo
         iout = iout1+(idisp-1)*istep_out_disp
         if(b_flag)then
-           if(npolsky.eq.0)then
+           if(npolsky.eq.0.or.nstar.eq.0)then
               back(iout) = sngl(amp(nstar+1))
            else if(npolsky.gt.0)then
               !*** TODO: add position dependence of sky for npolsky>0
