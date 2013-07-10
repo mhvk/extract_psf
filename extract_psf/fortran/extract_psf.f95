@@ -1472,9 +1472,8 @@ subroutine psfintgauss(x,np,par,y,deriv)
   integer, intent(in) :: np
   double precision, intent(in) :: x,par(np)
   double precision, intent(out) :: y,deriv(np)
-  double precision :: gm,gaussm,gp,gaussp,derivnorm
-  double precision, parameter :: sqrt4ln2=1.66510922232d0, &
-       sqrtpi=1.77245385091d0
+  double precision :: gm,gaussm,gp,gaussp,derivnorm, sqrt4ln2, sqrtpi
+  parameter(sqrt4ln2=1.66510922232d0, sqrtpi=1.77245385091d0)
   !
   gm = sqrt4ln2*(x-0.5d0*par(3)-par(1))/par(2)
   gaussm = exp(-gm**2)

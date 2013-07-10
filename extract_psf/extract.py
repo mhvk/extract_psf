@@ -185,7 +185,7 @@ def extract(d, tracepos, psf,
              ntest=d.size, istart_test=0, istep_test=istep_d,
              o_flag=False, e_flag=False, b_flag=True, c_flag=True,
              p_flag=False, s_flag=False,
-             itesttype=itesttype, rnull=0., ibadlimit=2)
+             itesttype=itesttype, rnull=0., ibadlimit=ibadlimit)
         # Restore proper shapes of input arrays
         d.shape = e.shape = test.shape = d_orig_shape
         # Set output array shape, removing unnecessary dimensions
