@@ -129,6 +129,9 @@ def extract(d, tracepos, psf,
     if fitrange is None:
         ipbeg = 1-int(np.round(xord[0,0]))
         ipend = ipbeg-1+nspat
+    elif isinstance(fitrange, slice):
+        ipbeg = fitrange.start + 1
+        ipend = fitrange.stop + 1
     else:
         ipbeg = int(np.round(fitrange[0]+np.min(tracepos-tracepos[0])))
         ipend = int(np.round(fitrange[1]+np.max(tracepos-tracepos[0])))
