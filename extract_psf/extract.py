@@ -148,19 +148,19 @@ def extract(d, tracepos, psf,
         (psf.par, psf.err, psf.chi2,
          out, eout, back, chi2, test,
          ntdiscard, ntbadl, ntbadh, nproblems) = extrpsf.extract_psf(
-             d, istep_in=istep_d, ein=e, istart_ein=0, istep_ein=istep_d,
-             ipbeg=ipbeg, ipend=ipend,
-             kbeg=kbeg, kend=kend, lbeg=lbeg, lend=lend,
-             xord=xord, tilt1=tilt1, tilt2=tilt1, tilt_flag=False, npoltilt=0,
-             mindof=mindof, nitermax=nitermax, clip1=clip[0], clip2=clip[1],
-             ipsf=psf.form, psfguess=psfguess, ifix=ifit,
-             npoldisp=npoldisp, nshape=len(psf.npoldisp),
-             nstar=nstar, npolsky=skypol,
-             nout=nout, nback=nout, nchi2=nout, istep_out=istep_out,
-             ntest=d.size, istart_test=0, istep_test=istep_d,
-             o_flag=True, e_flag=True, b_flag=True, c_flag=True,
-             p_flag=False, s_flag=True,
-             itesttype=itesttype, rnull=0., ibadlimit=ibadlimit)
+            d, istep_in=istep_d, ein=e, istart_ein=0, istep_ein=istep_d,
+            ipbeg=ipbeg, ipend=ipend,
+            kbeg=kbeg, kend=kend, lbeg=lbeg, lend=lend,
+            xord=xord, tilt1=tilt1, tilt2=tilt1, tilt_flag=False, npoltilt=0,
+            mindof=mindof, nitermax=nitermax, clip1=clip[0], clip2=clip[1],
+            ipsf=psf.form, psfguess=psfguess, ifix=ifit,
+            npoldisp=npoldisp, nshape=len(psf.npoldisp),
+            nstar=nstar, npolsky=skypol,
+            nout=nout, nback=nout, nchi2=nout, istep_out=istep_out,
+            ntest=d.size, istart_test=0, istep_test=istep_d,
+            o_flag=True, e_flag=True, b_flag=True, c_flag=True,
+            p_flag=False, s_flag=True,
+            itesttype=itesttype, rnull=0., ibadlimit=ibadlimit)
         # Restore proper shapes of input arrays
         d.shape = e.shape = test.shape = d_orig_shape
         # Set output array shape, removing unnecessary dimensions if wanted
@@ -173,19 +173,19 @@ def extract(d, tracepos, psf,
     else:
         (_,_,_,_,_, back, chi2, test,
          _, ntbadl, ntbadh, _) = extrpsf.extract_psf(
-             d, istep_in=istep_d, ein=e, istart_ein=0, istep_ein=istep_d,
-             ipbeg=ipbeg, ipend=ipend,
-             kbeg=kbeg, kend=kend, lbeg=lbeg, lend=lend,
-             xord=xord, tilt1=tilt1, tilt2=tilt1, tilt_flag=False, npoltilt=0,
-             mindof=0, nitermax=0, clip1=clip, clip2=0.,
-             ipsf=0, psfguess=np.array([0.]), ifix=np.array([0]),
-             npoldisp=np.array([0]), nshape=1,
-             nstar=0, npolsky=skypol,
-             nout=1, nback=nout, nchi2=nout, istep_out=istep_out,
-             ntest=d.size, istart_test=0, istep_test=istep_d,
-             o_flag=False, e_flag=False, b_flag=True, c_flag=True,
-             p_flag=False, s_flag=False,
-             itesttype=itesttype, rnull=0., ibadlimit=ibadlimit)
+            d, istep_in=istep_d, ein=e, istart_ein=0, istep_ein=istep_d,
+            ipbeg=ipbeg, ipend=ipend,
+            kbeg=kbeg, kend=kend, lbeg=lbeg, lend=lend,
+            xord=xord, tilt1=tilt1, tilt2=tilt1, tilt_flag=False, npoltilt=0,
+            mindof=0, nitermax=0, clip1=clip, clip2=0.,
+            ipsf=0, psfguess=np.array([0.]), ifix=np.array([0]),
+            npoldisp=np.array([0]), nshape=1,
+            nstar=0, npolsky=skypol,
+            nout=1, nback=nout, nchi2=nout, istep_out=istep_out,
+            ntest=d.size, istart_test=0, istep_test=istep_d,
+            o_flag=False, e_flag=False, b_flag=True, c_flag=True,
+            p_flag=False, s_flag=False,
+            itesttype=itesttype, rnull=0., ibadlimit=ibadlimit)
         # Restore proper shapes of input arrays
         d.shape = e.shape = test.shape = d_orig_shape
         # Set output array shape, removing unnecessary dimensions
@@ -196,5 +196,7 @@ def extract(d, tracepos, psf,
 
 
 def fitsky(d, skypol=2, clip=5., itesttype=101, **kwargs):
+    if 'fitrange' not in kwargs:
+        kwargs['fitrange'] = None
     return extract(d, skypol=skypol, clip=clip, itesttype=itesttype,
-                   tracepos=None, psf=None, fitrange=None, **kwargs)
+                   tracepos=None, psf=None, **kwargs)
