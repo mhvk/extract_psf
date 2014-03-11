@@ -273,7 +273,12 @@ subroutine Extract_PSF(in,nin,istep_in, &
           psfpar(1,iorder),npar,clip1, &
           iout,out,eout,nout,back,nback,chi2,nchi2, &
           test,ntest,nbadl,nbadh, &
-          o_flag,e_flag,b_flag,c_flag,itesttype,rnull)
+          o_flag,e_flag,b_flag,c_flag,itesttype,rnull,istatus)
+     if(istatus.ne.0)then
+        write(output,94)iorder
+94      format('Order ',i2,' extraction had WEIRD ERRORS.  See above.')
+        call writeout(output)
+     endif
      !---- report progress
      if(ibadlimit.le.5)then
         if(p_flag.or.nstar.eq.0)then
@@ -364,7 +369,8 @@ subroutine Fit_Profiles(in,nin,ein,nein,xord, &
           ndisp,lbeg,lend, &
           psfpar,ifix,npar, &
           covar,alpha,npar,chi2,psfndof,ndiscard, &
-          do1profile,alambda)
+          do1profile,alambda,istatus)
+     if(istatus.ne.0)return
      if(alambda.eq.0.d0)exit fit  ! alambda=0 means this was final run
      if(ibadlimit.le.2)then
         nparprint = min(npar,(len(output)-(4+12+1+8+4+10))/14)
@@ -413,7 +419,7 @@ subroutine Extract_Order(in,nin,ein,nein,xord, &
      ndisp,lbeg,lend,psfpar,npar,clip,iout1, &
      out,eout,nout,back,nback,chi2,nchi2, &
      test,ntest,ntbadl,ntbadh, &
-     o_flag,e_flag,b_flag,c_flag,itesttype,rnull)
+     o_flag,e_flag,b_flag,c_flag,itesttype,rnull,istatus)
   !
   !--- measure fluxes and sky with given profile and offsets
   !--- fill the appropriate output and test frames
@@ -449,8 +455,9 @@ subroutine Extract_Order(in,nin,ein,nein,xord, &
   logical, intent(in) :: o_flag,e_flag,b_flag,c_flag  ! which outputs to store
   integer, intent(in) :: itesttype           ! what test to make
   real, intent(in) :: rnull                  ! value indicating undefined
+  integer, intent(out) :: istatus            ! if anything unexpected happened
   ! variables and arrays used in calc1profile
-  integer :: istatus,ndof,nbadl,nbadh
+  integer :: ndof,nbadl,nbadh
   double precision :: dchi2
   double precision, allocatable :: sppar(:)
   ! amplitudes of PSFs (and sky)
@@ -477,6 +484,9 @@ subroutine Extract_Order(in,nin,ein,nein,xord, &
           ipsf,nshape,sppar,nsppar,clip, &
           amp,covar,nlsq,dchi2,ndof,nbadl,nbadh, &
           test,ntest,itesttype,istatus)
+     ! -1 = too few good points, +1: too few points on chip
+     ! -9: unknown test type (should not really happen!)
+     if(istatus.lt.-1)return
      ntbadl = ntbadl+nbadl
      ntbadh = ntbadh+nbadh
      if(istatus.eq.0)then
@@ -523,6 +533,8 @@ subroutine Extract_Order(in,nin,ein,nein,xord, &
         endif
      endif
   enddo
+  ! if we get here, things were OK, even if some pixels had too few points
+  istatus = 0
 end subroutine Extract_Order
 !
 subroutine do1profile(in,nin,ein,nein,xord, &
@@ -571,7 +583,11 @@ subroutine do1profile(in,nin,ein,nein,xord, &
   !
   integer :: nsppar,is,iy,ip,is2,iy2,ip2
   !--- get model parameters at current profile from polynomial fits
-  if(nstar.eq.0)stop'nstar=0 in do1profile. Should not happen!'
+  if(nstar.eq.0)then
+     print*,'nstar=0 in do1profile. Should not happen!'
+     istatus = -101
+     return
+  endif
   nsppar = nshape+nstar-1   ! # model parameters for 1 profile
   allocate(sppar(nsppar),tbeta(nsppar),talpha(nsppar,nsppar))
   ! evaluate model pars at idisp
@@ -746,7 +762,11 @@ subroutine get1profile(in,nin,ein,nein,xord, &
   !
   !      print*,'get1profile ',idisp,(par(j),j=1,npar)
   !      print*,'ipsf,nshape,nstar=',ipsf,nshape,nstar
-  if(nstar.eq.0)stop'nstar=0 in get1profile. Should not happen!'
+  if(nstar.eq.0)then
+     print*,'nstar=0 in get1profile. Should not happen!'
+     istatus = -102
+     return
+  endif
   istatus = 0
   allocate(px(nwidth),py(nwidth),pe(nwidth),pd(nwidth))
   !
@@ -755,21 +775,24 @@ subroutine get1profile(in,nin,ein,nein,xord, &
   !*** (.false. could give some problem with ip1,ip2=1,nwidth check...)
   average_flag = .true.
   call Access_Profile(0,xord,tilt1,tilt2,tilt_flag,npoltilt, &
-       average_flag,idisp,lbeg,lend,ip1,ip2,pd,px)
+       average_flag,idisp,lbeg,lend,ip1,ip2,pd,px,istatus)
+  if(istatus.ne.0)return
   if(ip1.gt.1.or.ip2.lt.nwidth)then
      istatus = -1
      return
   endif
   !... get errors and check whether there are known bad pixels
   call Access_Profile(2,xord,tilt1,tilt2,tilt_flag,npoltilt, &
-       average_flag,idisp,lbeg,lend,ip1,ip2,ein,pe)
+       average_flag,idisp,lbeg,lend,ip1,ip2,ein,pe,istatus)
+  if(istatus.ne.0)return
   if(any(pe.le.0.))then
      istatus = minloc(pe,dim=1)
      return
   endif
   !... get actual fluxes
   call Access_Profile(1,xord,tilt1,tilt2,tilt_flag,npoltilt, &
-       average_flag,idisp,lbeg,lend,ip1,ip2,in,py)
+       average_flag,idisp,lbeg,lend,ip1,ip2,in,py,istatus)
+  if(istatus.ne.0)return
   !
   nlsq = nstar+npolsky+1                    ! total number of amplitudes
   allocate(p(nlsq),dp(nshape,nstar))
@@ -833,7 +856,8 @@ subroutine get1profile(in,nin,ein,nein,xord, &
   call choldc(swff,nlsq,nlsq,swffd,istatus)
   if(istatus.ne.0)then
      print*,'Choldc failed in get1profile!!! Should not happen'
-     stop
+     istatus = -103
+     return
   endif
   !---- get solution for amplitudes
   call cholsl(swff,nlsq,nlsq,swffd,swyf,amp)
@@ -1001,6 +1025,7 @@ subroutine calc1profile(in,nin,ein,nein,xord, &
   ! istatus:         0: OK; 
   !                 -1: too few good points
   !                 +1: too few points on chip
+  !                 -9: choldc failure (should not really happen; signal back)
   ! 
   use frame
   use log
@@ -1060,11 +1085,14 @@ subroutine calc1profile(in,nin,ein,nein,xord, &
   !
   ! get spatial positions, data, errors for this profile
   call Access_Profile(0,xord,tilt1,tilt2,tilt_flag,npoltilt,.false., &
-       idisp,lbeg,lend,ip1,ip2,pd,px)
+       idisp,lbeg,lend,ip1,ip2,pd,px,istatus)
+  if(istatus.ne.0)return
   call Access_Profile(1,xord,tilt1,tilt2,tilt_flag,npoltilt,.false., &
-       idisp,lbeg,lend,ip1,ip2,in,py)
+       idisp,lbeg,lend,ip1,ip2,in,py,istatus)
+  if(istatus.ne.0)return
   call Access_Profile(2,xord,tilt1,tilt2,tilt_flag,npoltilt,.false., &
-       idisp,lbeg,lend,ip1,ip2,ein,pe)
+       idisp,lbeg,lend,ip1,ip2,ein,pe,istatus)
+  if(istatus.ne.0)return
   !---- see whether there are sufficient data points in the profile
   ! ... want at least half the slit, and more data than amplitudes
   if(count(pe(ip1:ip2).gt.0).le.min(nlsq,nwidth/2).and.nstar.gt.0)then
@@ -1241,7 +1269,9 @@ subroutine calc1profile(in,nin,ein,nein,xord, &
      case(103)            ! difference in sigma's
         dt = dq*sqrt(abs(w(ix)))
      case default
-        stop 'calc1profile: unknown test type'
+        print*,'calc1profile: unknown test type'
+        istatus = -100
+        return
      end select
      ! ... mark as bad if required
      if(markbad)then
@@ -1258,7 +1288,8 @@ subroutine calc1profile(in,nin,ein,nein,xord, &
      pt(ix) = sngl(dt)                ! fill test frame
   enddo slit_out
   call Access_Profile(4,xord,tilt1,tilt2,tilt_flag,npoltilt,.false., &
-       idisp,lbeg,lend,ip1,ip2,test,pt)
+       idisp,lbeg,lend,ip1,ip2,test,pt,istatus)
+  if(istatus.ne.0)return
   !---- calculate covariances (using swyf as temporary array for unit vectors)
   swyf(1:nlsqc) = 0.d0
   do k = 1,nlsqc
@@ -1491,7 +1522,7 @@ end subroutine psfintgauss
 SUBROUTINE mrqmin(in,nin,ein,nein,xord, &
      tilt1,tilt2,tilt_flag,npoltilt, &
      ndisp,lbeg,lend, &
-     a,ia,ma,covar,alpha,nca,chisq,ndof,ndiscard,funcs,alamda)
+     a,ia,ma,covar,alpha,nca,chisq,ndof,ndiscard,funcs,alamda,istatus)
   !... adapted so that it can pass on image data and positions
   INTEGER, intent(in) :: nin,nein,ma,nca,ndisp,lbeg,lend,ia(ma)
   INTEGER,intent(out)  :: ndof,ndiscard
@@ -1499,6 +1530,7 @@ SUBROUTINE mrqmin(in,nin,ein,nein,xord, &
   INTEGER, intent(in) :: npoltilt
   LOGICAL, intent(in) :: tilt_flag
   DOUBLE PRECISION, intent(inout) :: alamda,chisq,a(ma),alpha(nca,nca),covar(nca,nca)
+  INTEGER, intent(out) :: istatus ! whether any irrecoverable problems occurred
   !U    USES covsrt,gaussj,mrqcof
   INTEGER :: j,l,mfit,ondof
   DOUBLE PRECISION :: ochisq
@@ -1515,7 +1547,8 @@ SUBROUTINE mrqmin(in,nin,ein,nein,xord, &
      call mrqcof(in,nin,ein,nein,xord,tilt1,tilt2,tilt_flag,npoltilt, &
           ndisp,lbeg,lend, &
           a,ia,ma,mfit,alpha,beta,nca,chisq,ndof,ndiscard, &
-          funcs)
+          funcs,istatus)
+     if(istatus.ne.0)return
      ochisq=chisq
      atry(1:ma)=a(1:ma)
   endif
@@ -1524,7 +1557,8 @@ SUBROUTINE mrqmin(in,nin,ein,nein,xord, &
      covar(j,j)=alpha(j,j)*(1.+alamda)
      da(j)=beta(j)
   enddo
-  call gaussj(covar,mfit,nca,da,1,1)
+  call gaussj(covar,mfit,nca,da,1,1,istatus)
+  if(istatus.ne.0)return
   if(alamda.eq.0.d0)then
      call covsrt(covar,nca,ma,ia,mfit)
      call covsrt(alpha,nca,ma,ia,mfit)
@@ -1540,7 +1574,8 @@ SUBROUTINE mrqmin(in,nin,ein,nein,xord, &
   call mrqcof(in,nin,ein,nein,xord,tilt1,tilt2,tilt_flag,npoltilt, &
        ndisp,lbeg,lend, &
        atry,ia,ma,mfit,covar,da,nca,chisq,ndof,ndiscard, &
-       funcs)
+       funcs,istatus)
+  if(istatus.ne.0)return
   if(chisq.le.ochisq.or.ndof.gt.ondof)then
      alamda=0.1d0*alamda
      ochisq=chisq
@@ -1560,7 +1595,7 @@ END SUBROUTINE mrqmin
 SUBROUTINE mrqcof(in,nin,ein,nein,xord, &
      tilt1,tilt2,tilt_flag,npoltilt,ndisp, &
      lbeg,lend, &
-     a,ia,ma,mfit,alpha,beta,nalp,chisq,ndof,ndiscard,funcs)
+     a,ia,ma,mfit,alpha,beta,nalp,chisq,ndof,ndiscard,funcs,istatus)
   !... adapted so that it can pass on image data and positions
   INTEGER, intent(in) :: nin,nein,ndisp,lbeg,lend,ma,mfit,nalp,ia(ma)
   INTEGER, intent(out) :: ndof,ndiscard
@@ -1568,10 +1603,11 @@ SUBROUTINE mrqcof(in,nin,ein,nein,xord, &
   LOGICAL, intent(in) :: tilt_flag
   INTEGER, intent(in) :: npoltilt
   DOUBLE PRECISION, intent(out) :: chisq,a(ma),alpha(nalp,nalp),beta(ma)
+  INTEGER, intent(out) :: istatus ! whether any irrecoverable errors occurred
   EXTERNAL funcs
   !INTEGER :: nparmax
   !PARAMETER (nparmax=128)
-  INTEGER :: i,j,k,l,m,istatus,tndof
+  INTEGER :: i,j,k,l,m,tndof
   DOUBLE PRECISION :: tchisq,tbeta(ma),talpha(ma,ma)
   do j=1,mfit
      alpha(j,1:j)=0.d0
@@ -1584,6 +1620,7 @@ SUBROUTINE mrqcof(in,nin,ein,nein,xord, &
      call funcs(in,nin,ein,nein,xord,tilt1,tilt2,tilt_flag,npoltilt, &
           ndisp,i,lbeg,lend, &
           a,ma,tchisq,tndof,tbeta,talpha,ma,istatus)
+     if(istatus.lt.-99)return  ! irrecoverable
      if(istatus.ne.0)then   ! don't use if something wrong
         if(istatus.lt.0)ndiscard = ndiscard+1  ! keep track of bad data
         cycle profile
@@ -1611,12 +1648,14 @@ SUBROUTINE mrqcof(in,nin,ein,nein,xord, &
      enddo
   enddo
   chisq = chisq/dble(ndof)
+  istatus = 0
   return
 END SUBROUTINE mrqcof
 !  (C) Copr. 1986-92 Numerical Recipes Software :)z%+.
-SUBROUTINE gaussj(a,n,np,b,m,mp)
+SUBROUTINE gaussj(a,n,np,b,m,mp,istatus)
   INTEGER, intent(in) :: m,mp,n,np
   DOUBLE PRECISION, intent(inout) :: a(np,np),b(np,mp)
+  INTEGER, intent(out) :: istatus
   INTEGER :: i,icol,irow,j,k,l,ll,indxc(n),indxr(n),ipiv(n)
   DOUBLE PRECISION :: big,dum,pivinv
   ipiv(1:n)=0
@@ -1650,7 +1689,11 @@ SUBROUTINE gaussj(a,n,np,b,m,mp)
      endif
      indxr(i)=irow
      indxc(i)=icol
-     if (a(icol,icol).eq.0.d0) stop 'singular matrix in gaussj'
+     if (a(icol,icol).eq.0.d0)then
+        print*,'singular matrix in gaussj, should not happen!!'
+        istatus = -999
+        return
+     endif
      pivinv=1.d0/a(icol,icol)
      a(icol,icol)=1.
      a(icol,1:n)=a(icol,1:n)*pivinv
@@ -1673,6 +1716,7 @@ SUBROUTINE gaussj(a,n,np,b,m,mp)
         enddo
      endif
   enddo
+  istatus = 0
   return
 END SUBROUTINE gaussj
 !  (C) Copr. 1986-92 Numerical Recipes Software :)z%+.
@@ -1781,7 +1825,7 @@ END FUNCTION gammln
 !
 subroutine Access_Profile(directive,xord, &
      tilt1,tilt2,tilt_flag,npoltilt, &
-     average_flag,iout,lbeg,lend,ip1,ip2,a,p)
+     average_flag,iout,lbeg,lend,ip1,ip2,a,p,istatus)
   !
   !----------------------------------------------------------------------------
   !
@@ -1807,6 +1851,7 @@ subroutine Access_Profile(directive,xord, &
   ! ip2     [i]   end    ..   ..    ..   (nwidth   ..     ..    ..  .. )
   ! a()     [r]   image array holding data to be accessed (except for setup)
   ! p()     [r]   profile to be read or written
+  ! istatus [i]   anything != 0 is unknown directive
   !
   !----------------------------------------------------------------------------
   !
@@ -1817,6 +1862,7 @@ subroutine Access_Profile(directive,xord, &
   integer, intent(in) :: directive,iout,lbeg,lend,npoltilt
   integer, intent(inout) :: ip1,ip2
   real, intent(in) :: xord(1),tilt1(1),tilt2(1)
+  integer, intent(out) :: istatus
   !*** intent can be in or out; really should just output indices!
   real :: a(1),p(1)
   logical, intent(in) :: tilt_flag,average_flag
@@ -1826,6 +1872,7 @@ subroutine Access_Profile(directive,xord, &
   !*** temporary while fiddling with this!
   integer :: isample
   !
+  istatus = 0
   isample = 3
   if(isample.gt.2)then
      i0 = nint(xord(iout))+ipbeg-1
@@ -1874,7 +1921,9 @@ subroutine Access_Profile(directive,xord, &
              (iout-1)*istep_prob_disp+1
         istep_space = istep_prob_space
      case default
-        stop'Access_Profile: unknown directive'
+        print*,'Access_Profile: unknown directive'
+        istatus = -1000
+        return
      end select
      do ip = ip1,ip2
         p(ip) = a(ia)
@@ -1964,11 +2013,17 @@ subroutine Access_Profile(directive,xord, &
            enddo
            return
         case(3)  !---- get input probabilities
-           stop'Reading input prob. for interp. tilted slit makes no sense'
+           print*,'Reading input prob. for interp. tilted slit makes no sense'
+           istatus = -1001
+           return
         case(4)
-           stop'Writing test for interpolated tilted slit makes no sense.'
+           print*,'Writing test for interpolated tilted slit makes no sense.'
+           istatus = -1002
+           return
         case default
-           stop'Access_Profile: unknown directive'
+           print*,'Access_Profile: unknown directive'
+           istatus = -1000
+           return
         end select avtilt
 199     if(npoltilt.eq.1)then
            print*,'x0,d0,tilt,ip1,ip2,ip=',x0,d0,tilt1(iout),ip1,ip2,ip
@@ -1977,7 +2032,9 @@ subroutine Access_Profile(directive,xord, &
                 x0,d0,tilt1(iout),tilt2(iout),ip1,ip2,ip
         endif
         print*,'iout,d,id1,lbeg,lend=',iout,d,id1,lbeg,lend
-        stop'Tilted slit/average: Out of bounds! Should not happen!'
+        print*,'Tilted slit/average: Out of bounds! Should not happen!'
+        istatus = -2000
+        return
      else
         !
         !**** access data for a tilted slit
@@ -2061,7 +2118,9 @@ subroutine Access_Profile(directive,xord, &
            istep_space = istep_prob_space
            istep_disp = istep_prob_disp
         case default
-           stop'Access_Profile: unknown directive'
+           print*,'Access_Profile: unknown directive'
+           istatus = -1000
+           return
         end select tilted
         do ip = ip1,ip2
            d = float(ip-1+ipbeg)*tilt1(iout)
@@ -2077,7 +2136,9 @@ subroutine Access_Profile(directive,xord, &
 299     print*,x0,ip1,ip2,ip
         print*,'D: iout,idx,lbeg,lend=',iout,idx,lbeg,lend
         print*,'X:i0+ip,ipx,kbeg,kend=',i0+ip,ipx,kbeg,kend
-        stop'Tilted slit/close-by: Out of bounds! Should not happen!'
+        print*,'Tilted slit/close-by: Out of bounds! Should not happen!'
+        istatus = -2000
+        return
      endif average
   endif tilt
 end subroutine Access_Profile
